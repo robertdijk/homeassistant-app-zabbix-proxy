@@ -1,0 +1,34 @@
+#include <tunables/global>
+
+profile zabbix_proxy flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+
+  file,
+  network inet tcp,
+  network inet udp,
+  signal (receive, send),
+
+  # Entrypoints and shell helpers used by the Home Assistant wrapper and
+  # the upstream Zabbix Docker entrypoint.
+  /usr/local/bin/ha-zabbix-proxy-entrypoint ix,
+  /usr/bin/zabbix-docker-entrypoint.sh ix,
+  /bin/** rix,
+  /usr/bin/** rix,
+  /usr/sbin/** rix,
+  /usr/lib/** rix,
+  /lib/** rix,
+
+  # Home Assistant options and app config mapping.
+  /data/** rwk,
+  /config/** r,
+
+  # Zabbix runtime state, SQLite database, modules, and TLS/SNMP support files.
+  /etc/zabbix/** rw,
+  /var/lib/zabbix/** rwk,
+  /run/** rwk,
+  /tmp/** rwk,
+  /dev/tty rw,
+  /dev/null rw,
+  /dev/random r,
+  /dev/urandom r,
+}

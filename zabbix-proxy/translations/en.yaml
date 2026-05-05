@@ -1,0 +1,46 @@
+configuration:
+  server_host:
+    name: Zabbix server
+    description: Zabbix server DNS name or IP address, optionally including a port.
+  proxy_hostname:
+    name: Proxy hostname
+    description: Proxy name exactly as configured in the Zabbix frontend.
+  proxy_mode:
+    name: Proxy mode
+    description: Active connects out to the Zabbix server; passive listens for the server.
+  debug_level:
+    name: Debug level
+    description: Zabbix proxy log verbosity from 0 to 5.
+  proxy_offline_buffer:
+    name: Offline buffer
+    description: Number of hours to keep data while the Zabbix server is unavailable.
+  proxy_config_frequency:
+    name: Config frequency
+    description: Seconds between proxy configuration refreshes in active mode.
+  data_sender_frequency:
+    name: Data sender frequency
+    description: Seconds between sending collected data to the Zabbix server.
+  timeout:
+    name: Timeout
+    description: Timeout in seconds for agent, SNMP, external, and related checks.
+  tls_connect:
+    name: TLS connect
+    description: TLS mode used when connecting to the Zabbix server.
+  tls_accept:
+    name: TLS accept
+    description: TLS mode accepted by this proxy for incoming connections.
+  tls_psk_identity:
+    name: TLS PSK identity
+    description: Pre-shared key identity used for PSK encryption.
+  tls_psk:
+    name: TLS PSK
+    description: Pre-shared key value used for PSK encryption.
+  tls_ca_file:
+    name: TLS CA file
+    description: CA certificate file name from the app configuration folder, or an absolute path.
+  tls_cert_file:
+    name: TLS certificate file
+    description: Client certificate file name from the app configuration folder, or an absolute path.
+  tls_key_file:
+    name: TLS key file
+    description: Private key file name from the app configuration folder, or an absolute path.

@@ -1,0 +1,112 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+CONFIG_PATH="${CONFIG_PATH:-/data/options.json}"
+ZABBIX_ENTRYPOINT="/usr/bin/zabbix-docker-entrypoint.sh"
+
+log() {
+  echo "[zabbix-proxy] $*" >&2
+}
+
+read_config() {
+  local key="${1}"
+  jq -er --arg key "${key}" '.[$key] // empty' "${CONFIG_PATH}" 2>/dev/null || true
+}
+
+require_config() {
+  local key="${1}"
+  local value
+  value="$(read_config "${key}")"
+
+  if [[ -z "${value}" ]]; then
+    log "Missing required option: ${key}"
+    exit 1
+  fi
+
+  printf '%s' "${value}"
+}
+
+export_if_set() {
+  local env_name="${1}"
+  local option_name="${2}"
+  local value
+  value="$(read_config "${option_name}")"
+
+  if [[ -n "${value}" ]]; then
+    export "${env_name}=${value}"
+  fi
+}
+
+export_file_if_set() {
+  local env_name="${1}"
+  local option_name="${2}"
+  local filename
+  filename="$(read_config "${option_name}")"
+
+  if [[ -z "${filename}" ]]; then
+    return
+  fi
+
+  if [[ "${filename}" == /* ]]; then
+    export "${env_name}=${filename}"
+  else
+    export "${env_name}=/config/${filename}"
+  fi
+}
+
+if [[ ! -f "${CONFIG_PATH}" ]]; then
+  log "Home Assistant options file was not found at ${CONFIG_PATH}"
+  exit 1
+fi
+
+mkdir -p /data/db_data /var/lib/zabbix/snmptraps /var/lib/zabbix/mibs /var/lib/zabbix/modules
+if [[ "$(id -u)" -eq 0 ]]; then
+  chown -R zabbix:zabbix /data/db_data /var/lib/zabbix/snmptraps /var/lib/zabbix/mibs /var/lib/zabbix/modules
+fi
+
+server_host="$(require_config server_host)"
+proxy_hostname="$(require_config proxy_hostname)"
+proxy_mode="$(read_config proxy_mode)"
+
+case "${proxy_mode:-active}" in
+  active)
+    zbx_proxy_mode="0"
+    ;;
+  passive)
+    zbx_proxy_mode="1"
+    ;;
+  *)
+    log "Invalid proxy_mode '${proxy_mode}'. Expected 'active' or 'passive'."
+    exit 1
+    ;;
+esac
+
+if [[ "${server_host}" =~ ^([^:]+):([0-9]+)$ ]]; then
+  export ZBX_SERVER_HOST="${BASH_REMATCH[1]}"
+  export ZBX_SERVER_PORT="${BASH_REMATCH[2]}"
+else
+  export ZBX_SERVER_HOST="${server_host}"
+fi
+
+export ZBX_HOSTNAME="${proxy_hostname}"
+export ZBX_PROXYMODE="${zbx_proxy_mode}"
+
+export_if_set ZBX_DEBUGLEVEL debug_level
+export_if_set ZBX_PROXYOFFLINEBUFFER proxy_offline_buffer
+export_if_set ZBX_PROXYCONFIGFREQUENCY proxy_config_frequency
+export_if_set ZBX_DATASENDERFREQUENCY data_sender_frequency
+export_if_set ZBX_TIMEOUT timeout
+export_if_set ZBX_TLSCONNECT tls_connect
+export_if_set ZBX_TLSACCEPT tls_accept
+export_if_set ZBX_TLSPSKIDENTITY tls_psk_identity
+export_if_set ZBX_TLSPSK tls_psk
+export_file_if_set ZBX_TLSCAFILE tls_ca_file
+export_file_if_set ZBX_TLSCERTFILE tls_cert_file
+export_file_if_set ZBX_TLSKEYFILE tls_key_file
+
+log "Starting Zabbix proxy '${proxy_hostname}' in ${proxy_mode:-active} mode"
+if [[ "$(id -u)" -eq 0 ]]; then
+  exec su-exec zabbix "${ZABBIX_ENTRYPOINT}" "$@"
+fi
+
+exec "${ZABBIX_ENTRYPOINT}" "$@"

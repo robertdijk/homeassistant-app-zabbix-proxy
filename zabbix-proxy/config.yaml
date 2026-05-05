@@ -1,0 +1,47 @@
+# https://developers.home-assistant.io/docs/apps/configuration#app-configuration
+name: Zabbix Proxy
+version: "0.1.0"
+slug: zabbix_proxy
+description: Zabbix proxy with SQLite3 storage for Home Assistant
+url: "https://github.com/robertdijk/homeassistant-app-zabbix-proxy/tree/main/zabbix-proxy"
+arch:
+  - aarch64
+  - amd64
+init: false
+startup: application
+ports:
+  10051/tcp: null
+ports_description:
+  10051/tcp: Zabbix proxy trapper port for passive mode and local Zabbix senders
+map:
+  - type: addon_config
+    read_only: true
+    path: /config
+options:
+  server_host: null
+  proxy_hostname: null
+  proxy_mode: active
+  debug_level: 3
+  proxy_offline_buffer: 1
+  proxy_config_frequency: 10
+  data_sender_frequency: 1
+  timeout: 4
+  tls_connect: unencrypted
+  tls_accept: unencrypted
+schema:
+  server_host: str
+  proxy_hostname: str
+  proxy_mode: list(active|passive)
+  debug_level: int(0,5)
+  proxy_offline_buffer: int(1,)
+  proxy_config_frequency: int(1,)
+  data_sender_frequency: int(1,)
+  timeout: int(1,)
+  tls_connect: list(unencrypted|psk|cert)
+  tls_accept: list(unencrypted|psk|cert)
+  tls_psk_identity: str?
+  tls_psk: password?
+  tls_ca_file: str?
+  tls_cert_file: str?
+  tls_key_file: str?
+image: "ghcr.io/robertdijk/homeassistant-app-zabbix-proxy"

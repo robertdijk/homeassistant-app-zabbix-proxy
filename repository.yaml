@@ -1,4 +1,4 @@
 # https://developers.home-assistant.io/docs/apps/repository#repository-configuration
-name: Example Home Assistant app repository
-url: 'https://github.com/home-assistant/apps-example'
-maintainer: Awesome Maintainer <awesome@example.com>
+name: Zabbix Proxy Home Assistant app repository
+url: "https://github.com/robertdijk/homeassistant-app-zabbix-proxy"
+maintainer: Robert Dijk <robertdijk@users.noreply.github.com>

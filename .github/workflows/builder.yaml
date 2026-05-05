@@ -10,11 +10,54 @@ on:
   push:
     branches:
       - main
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
+  validate-release:
+    name: Validate release metadata
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v6.0.2
+
+      - name: Validate app version
+        run: |
+          version="$(sed -nE 's/^version:[[:space:]]*"?([^"]+)"?[[:space:]]*$/\1/p' zabbix-proxy/config.yaml)"
+          image="$(sed -nE 's/^image:[[:space:]]*"?([^"]+)"?[[:space:]]*$/\1/p' zabbix-proxy/config.yaml)"
+
+          if [[ -z "${version}" ]]; then
+            echo "Could not read version from zabbix-proxy/config.yaml" >&2
+            exit 1
+          fi
+
+          if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "App version must use X.Y.Z format, got '${version}'" >&2
+            exit 1
+          fi
+
+          if [[ "${image}" != "ghcr.io/robertdijk/homeassistant-app-zabbix-proxy" ]]; then
+            echo "App image must be ghcr.io/robertdijk/homeassistant-app-zabbix-proxy, got '${image}'" >&2
+            exit 1
+          fi
+
+          if ! grep -qE "^##[[:space:]]+${version}$" zabbix-proxy/CHANGELOG.md; then
+            echo "zabbix-proxy/CHANGELOG.md must contain a '## ${version}' section" >&2
+            exit 1
+          fi
+
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            tag_version="${GITHUB_REF_NAME#v}"
+            if [[ "${tag_version}" != "${version}" ]]; then
+              echo "Git tag ${GITHUB_REF_NAME} does not match app version ${version}" >&2
+              exit 1
+            fi
+          fi
+
   init:
     name: Initialize builds
     runs-on: ubuntu-latest
@@ -27,6 +70,7 @@ jobs:
 
       - name: Get changed files
         id: changed_files
+        if: github.ref_type != 'tag' && github.event_name != 'workflow_dispatch'
         uses: tj-actions/changed-files@v47
 
       - name: Find app directories
@@ -41,8 +85,10 @@ jobs:
         run: |
           changed_apps=()
 
+          if [[ "${GITHUB_REF_TYPE}" == "tag" || "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            changed_apps=(${APPS})
           # If the workflow file itself changed, rebuild all apps
-          if [[ "${CHANGED_FILES}" =~ \.github/workflows/(builder|build-app)\.yaml ]]; then
+          elif [[ "${CHANGED_FILES}" =~ \.github/workflows/(builder|build-app)\.yaml ]]; then
             changed_apps=(${APPS})
           else
             for app in ${APPS}; do
@@ -64,7 +110,7 @@ jobs:
 
   build-app:
     name: Build ${{ matrix.app }}
-    needs: init
+    needs: [validate-release, init]
     if: needs.init.outputs.changed == 'true'
     permissions:
       contents: read
@@ -77,5 +123,5 @@ jobs:
     uses: ./.github/workflows/build-app.yaml
     with:
       app: ${{ matrix.app }}
-      publish: ${{ github.event_name == 'push' }}
+      publish: ${{ github.ref_type == 'tag' }}
     secrets: inherit
