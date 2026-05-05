@@ -60,9 +60,6 @@ if [[ ! -f "${CONFIG_PATH}" ]]; then
 fi
 
 mkdir -p /data/db_data /var/lib/zabbix/snmptraps /var/lib/zabbix/mibs /var/lib/zabbix/modules
-if [[ "$(id -u)" -eq 0 ]]; then
-  chown -R zabbix:zabbix /data/db_data /var/lib/zabbix/snmptraps /var/lib/zabbix/mibs /var/lib/zabbix/modules
-fi
 
 server_host="$(require_config server_host)"
 proxy_hostname="$(require_config proxy_hostname)"
@@ -90,6 +87,9 @@ fi
 
 export ZBX_HOSTNAME="${proxy_hostname}"
 export ZBX_PROXYMODE="${zbx_proxy_mode}"
+if [[ "$(id -u)" -eq 0 ]]; then
+  export ZBX_ALLOWROOT=1
+fi
 
 export_if_set ZBX_DEBUGLEVEL debug_level
 export_if_set ZBX_PROXYOFFLINEBUFFER proxy_offline_buffer
@@ -105,8 +105,4 @@ export_file_if_set ZBX_TLSCERTFILE tls_cert_file
 export_file_if_set ZBX_TLSKEYFILE tls_key_file
 
 log "Starting Zabbix proxy '${proxy_hostname}' in ${proxy_mode:-active} mode"
-if [[ "$(id -u)" -eq 0 ]]; then
-  exec su-exec zabbix "${ZABBIX_ENTRYPOINT}" "$@"
-fi
-
 exec "${ZABBIX_ENTRYPOINT}" "$@"

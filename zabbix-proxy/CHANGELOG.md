@@ -1,4 +1,10 @@
 <!-- https://developers.home-assistant.io/docs/apps/presentation#keeping-a-changelog -->
+## 0.1.2
+
+- Avoid runtime ownership changes on Home Assistant OS app data mounts.
+- Explicitly allow the Zabbix proxy to run as root inside the protected app
+  container.
+
 ## 0.1.1
 
 - Remove the default `startup` configuration key to satisfy the Home Assistant

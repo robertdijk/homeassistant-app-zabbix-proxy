@@ -4,7 +4,7 @@ FROM zabbix/zabbix-proxy-sqlite3:alpine-7.4-latest
 USER root
 
 RUN \
-    apk add --no-cache jq su-exec \
+    apk add --no-cache jq \
     && mv /usr/bin/docker-entrypoint.sh /usr/bin/zabbix-docker-entrypoint.sh \
     && rm -rf /var/lib/zabbix/db_data \
     && ln -s /data/db_data /var/lib/zabbix/db_data
@@ -12,8 +12,7 @@ RUN \
 COPY rootfs /
 
 RUN \
-    chmod 0755 /usr/local/bin/ha-zabbix-proxy-entrypoint \
-    && chown -h zabbix:0 /var/lib/zabbix/db_data
+    chmod 0755 /usr/local/bin/ha-zabbix-proxy-entrypoint
 
 ENTRYPOINT ["/usr/local/bin/ha-zabbix-proxy-entrypoint"]
 
