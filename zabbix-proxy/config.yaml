@@ -8,7 +8,6 @@ arch:
   - aarch64
   - amd64
 init: false
-startup: application
 ports:
   10051/tcp: null
 ports_description:
