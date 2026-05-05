@@ -1,4 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/apps/presentation#keeping-a-changelog -->
+## 0.1.1
+
+- Remove the default `startup` configuration key to satisfy the Home Assistant
+  app linter.
+
 ## 0.1.0
 
 - Initial release.
