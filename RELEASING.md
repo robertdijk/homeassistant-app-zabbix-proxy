@@ -12,16 +12,18 @@ Versions use the format `{zabbix-version}-{release}`, e.g. `7.4.9-1`.
 
 ## Automated Zabbix version bumps (Dependabot)
 
-Dependabot checks Docker Hub daily for new `zabbix/zabbix-proxy-sqlite3` patch
+Dependabot checks Docker Hub daily for new `zabbix/zabbix-proxy-sqlite3`
 releases. When one is found it opens a PR that updates the `FROM` line in
 [zabbix-proxy/Dockerfile](zabbix-proxy/Dockerfile).
 
-The **Prepare release** workflow then automatically commits matching updates to
+The **Prepare release** workflow automatically commits matching updates to
 `zabbix-proxy/config.yaml` (version → `{new-zabbix-version}-1`) and
-`zabbix-proxy/CHANGELOG.md` onto the same PR branch, so CI passes without any
+`zabbix-proxy/CHANGELOG.md` onto the same PR branch so CI passes without any
 manual edits.
 
-Review the PR, make any extra changes if needed, then merge.
+Review the PR, make any extra changes if needed, then merge. The **Release**
+workflow fires automatically on merge, creates the tag, builds, and publishes
+the image to GHCR — no further action needed.
 
 ## App-only releases (no Zabbix bump)
 
@@ -31,17 +33,10 @@ When you fix something in the app itself without changing the Zabbix version:
    (e.g. `7.4.9-1` → `7.4.9-2`).
 2. Add a matching `## 7.4.9-2` section to `zabbix-proxy/CHANGELOG.md`.
 3. Merge to `main`.
+4. Go to **Actions → Release → Run workflow** and click **Run workflow**.
 
-## One-click release
-
-Once the relevant changes are on `main`:
-
-1. Go to **Actions → Release → Run workflow**.
-2. Click **Run workflow**.
-
-The workflow reads the current version from `config.yaml`, creates and pushes
-the matching `v{version}` tag, which triggers the **Builder** workflow to build
-and publish the image to GHCR.
+The workflow reads the current version from `config.yaml`, creates the tag,
+builds, and publishes the image to GHCR.
 
 ## Upgrading to a new minor or major Zabbix version
 
@@ -55,11 +50,11 @@ Before the first public install works:
 
 1. Confirm the repository has GitHub Actions workflow permissions set to
    **Read and write permissions**.
-2. Push the first version tag and wait for the **Builder** workflow to finish.
+2. Run the **Release** workflow and wait for it to finish.
 3. In GitHub Packages, make the
    `homeassistant-app-zabbix-proxy` container package public.
 4. Confirm the package has these tags:
-   - `7.4.9-1` or the release version
+   - `7.4.9-2` or the release version
    - `latest`
    - per-architecture tags created by the Home Assistant builder
 
@@ -73,4 +68,4 @@ ha store reload
 ha apps rebuild --force "local_zabbix_proxy"
 ```
 
-Restore the `image` key before opening a pull request or tagging a release.
+Restore the `image` key before opening a pull request or triggering a release.

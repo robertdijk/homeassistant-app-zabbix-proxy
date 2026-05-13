@@ -10,9 +10,6 @@ on:
   push:
     branches:
       - main
-    tags:
-      - "v*.*.*"
-      - "v*.*.*-*"
   workflow_dispatch:
 
 permissions:
@@ -51,14 +48,6 @@ jobs:
             exit 1
           fi
 
-          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
-            tag_version="${GITHUB_REF_NAME#v}"
-            if [[ "${tag_version}" != "${version}" ]]; then
-              echo "Git tag ${GITHUB_REF_NAME} does not match app version ${version}" >&2
-              exit 1
-            fi
-          fi
-
   init:
     name: Initialize builds
     runs-on: ubuntu-latest
@@ -71,7 +60,7 @@ jobs:
 
       - name: Get changed files
         id: changed_files
-        if: github.ref_type != 'tag' && github.event_name != 'workflow_dispatch'
+        if: github.event_name != 'workflow_dispatch'
         uses: tj-actions/changed-files@v47
 
       - name: Find app directories
@@ -86,7 +75,7 @@ jobs:
         run: |
           changed_apps=()
 
-          if [[ "${GITHUB_REF_TYPE}" == "tag" || "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
             changed_apps=(${APPS})
           # If the workflow file itself changed, rebuild all apps
           elif [[ "${CHANGED_FILES}" =~ \.github/workflows/(builder|build-app)\.yaml ]]; then
@@ -124,5 +113,5 @@ jobs:
     uses: ./.github/workflows/build-app.yaml
     with:
       app: ${{ matrix.app }}
-      publish: ${{ github.ref_type == 'tag' }}
+      publish: false
     secrets: inherit
