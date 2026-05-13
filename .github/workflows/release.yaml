@@ -5,11 +5,8 @@ on:
     types: [closed]
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 jobs:
-  release:
+  tag:
     name: Create release tag
     runs-on: ubuntu-latest
     if: |
@@ -17,6 +14,10 @@ jobs:
       (github.event.pull_request.merged == true &&
        github.event.pull_request.user.login == 'dependabot[bot]' &&
        startsWith(github.head_ref, 'dependabot/docker/'))
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - name: Check out the repository
         uses: actions/checkout@v6.0.2
@@ -30,17 +31,25 @@ jobs:
             exit 1
           fi
           echo "version=${version}" >> "$GITHUB_OUTPUT"
-          echo "tag=v${version}" >> "$GITHUB_OUTPUT"
-
-      - name: Check tag does not already exist
-        run: |
-          if git ls-remote --exit-code origin "refs/tags/${{ steps.version.outputs.tag }}" &>/dev/null; then
-            echo "Tag ${{ steps.version.outputs.tag }} already exists" >&2
-            exit 1
-          fi
 
       - name: Create and push tag
         run: |
-          git tag "${{ steps.version.outputs.tag }}"
-          git push origin "${{ steps.version.outputs.tag }}"
-          echo "Released ${{ steps.version.outputs.tag }}"
+          if git ls-remote --exit-code origin "refs/tags/v${{ steps.version.outputs.version }}" &>/dev/null; then
+            echo "Tag v${{ steps.version.outputs.version }} already exists" >&2
+            exit 1
+          fi
+          git tag "v${{ steps.version.outputs.version }}"
+          git push origin "v${{ steps.version.outputs.version }}"
+
+  build:
+    name: Build and publish
+    needs: tag
+    permissions:
+      contents: read
+      id-token: write
+      packages: write
+    uses: ./.github/workflows/build-app.yaml
+    with:
+      app: zabbix-proxy
+      publish: true
+    secrets: inherit
