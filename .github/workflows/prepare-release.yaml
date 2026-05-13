@@ -1,0 +1,83 @@
+name: Prepare release
+
+# Runs when Dependabot opens or updates a PR that touches the Dockerfile.
+# Reads the new Zabbix version from the FROM line, then commits matching
+# version and changelog updates onto the same branch so CI passes.
+
+on:
+  pull_request_target:
+    types: [opened, synchronize]
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    name: Bump version and changelog
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the PR branch
+        uses: actions/checkout@v6.0.2
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check whether Dockerfile changed
+        id: dockerfile
+        run: |
+          git fetch origin ${{ github.base_ref }} --depth=1
+          if git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -q "zabbix-proxy/Dockerfile"; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Extract Zabbix version from Dockerfile
+        if: steps.dockerfile.outputs.changed == 'true'
+        id: zabbix
+        run: |
+          version=$(grep -oP 'FROM zabbix/zabbix-proxy-sqlite3:alpine-\K[0-9]+\.[0-9]+\.[0-9]+' zabbix-proxy/Dockerfile)
+          if [[ -z "${version}" ]]; then
+            echo "Could not extract Zabbix version from Dockerfile" >&2
+            exit 1
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Determine new app version
+        if: steps.dockerfile.outputs.changed == 'true'
+        id: app
+        run: |
+          echo "version=${{ steps.zabbix.outputs.version }}-1" >> "$GITHUB_OUTPUT"
+
+      - name: Update config.yaml
+        if: steps.dockerfile.outputs.changed == 'true'
+        run: |
+          sed -i -E "s/^version: \"[^\"]+\"/version: \"${{ steps.app.outputs.version }}\"/" zabbix-proxy/config.yaml
+
+      - name: Prepend CHANGELOG entry
+        if: steps.dockerfile.outputs.changed == 'true'
+        env:
+          APP_VERSION: ${{ steps.app.outputs.version }}
+          ZABBIX_VERSION: ${{ steps.zabbix.outputs.version }}
+        run: |
+          python3 - <<'EOF'
+          import re, os, pathlib
+          path = pathlib.Path("zabbix-proxy/CHANGELOG.md")
+          text = path.read_text()
+          version = os.environ["APP_VERSION"]
+          zabbix_version = os.environ["ZABBIX_VERSION"]
+          entry = f"## {version}\n\n- Update to Zabbix {zabbix_version}.\n\n"
+          text = re.sub(r'(<!--[^\n]*-->\n)', r'\1\n' + entry, text, count=1)
+          path.write_text(text)
+          EOF
+
+      - name: Commit version bump
+        if: steps.dockerfile.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add zabbix-proxy/config.yaml zabbix-proxy/CHANGELOG.md
+          git diff --staged --quiet && echo "Nothing to commit" && exit 0
+          git commit -m "Prepare release ${{ steps.app.outputs.version }}"
+          git push

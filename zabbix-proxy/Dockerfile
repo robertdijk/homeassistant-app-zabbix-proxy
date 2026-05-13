@@ -1,5 +1,5 @@
 # https://developers.home-assistant.io/docs/apps/configuration#app-dockerfile
-FROM zabbix/zabbix-proxy-sqlite3:alpine-7.4-latest
+FROM zabbix/zabbix-proxy-sqlite3:alpine-7.4.9
 
 USER root
 

@@ -1,6 +1,6 @@
 # https://developers.home-assistant.io/docs/apps/configuration#app-configuration
 name: Zabbix Proxy
-version: "0.1.2"
+version: "7.4.9-1"
 slug: zabbix_proxy
 description: Zabbix proxy with SQLite3 storage for Home Assistant
 url: "https://github.com/robertdijk/homeassistant-app-zabbix-proxy/tree/main/zabbix-proxy"

@@ -1,0 +1,39 @@
+name: Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create release tag
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v6.0.2
+
+      - name: Read version from config.yaml
+        id: version
+        run: |
+          version=$(sed -nE 's/^version:[[:space:]]*"?([^"]+)"?[[:space:]]*$/\1/p' zabbix-proxy/config.yaml)
+          if [[ -z "${version}" ]]; then
+            echo "Could not read version from zabbix-proxy/config.yaml" >&2
+            exit 1
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "tag=v${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Check tag does not already exist
+        run: |
+          if git ls-remote --exit-code origin "refs/tags/${{ steps.version.outputs.tag }}" &>/dev/null; then
+            echo "Tag ${{ steps.version.outputs.tag }} already exists" >&2
+            exit 1
+          fi
+
+      - name: Create and push tag
+        run: |
+          git tag "${{ steps.version.outputs.tag }}"
+          git push origin "${{ steps.version.outputs.tag }}"
+          echo "Released ${{ steps.version.outputs.tag }}"

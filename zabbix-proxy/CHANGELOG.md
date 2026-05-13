@@ -1,4 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/apps/presentation#keeping-a-changelog -->
+## 7.4.9-1
+
+- Switch to Zabbix-version-based versioning: `{zabbix-version}-{release}`.
+- Pin base image to `zabbix/zabbix-proxy-sqlite3:alpine-7.4.9`.
+
 ## 0.1.2
 
 - Avoid runtime ownership changes on Home Assistant OS app data mounts.
