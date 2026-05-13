@@ -23,40 +23,25 @@ jobs:
           ref: ${{ github.head_ref }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Check whether Dockerfile changed
-        id: dockerfile
-        run: |
-          git fetch origin ${{ github.base_ref }} --depth=1
-          if git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -q "zabbix-proxy/Dockerfile"; then
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Extract Zabbix version from Dockerfile
-        if: steps.dockerfile.outputs.changed == 'true'
         id: zabbix
         run: |
-          version=$(grep -oP 'FROM zabbix/zabbix-proxy-sqlite3:alpine-\K[0-9]+\.[0-9]+\.[0-9]+' zabbix-proxy/Dockerfile)
-          if [[ -z "${version}" ]]; then
-            echo "Could not extract Zabbix version from Dockerfile" >&2
-            exit 1
-          fi
+          version=$(grep -oP 'FROM zabbix/zabbix-proxy-sqlite3:alpine-\K[0-9]+\.[0-9]+\.[0-9]+' zabbix-proxy/Dockerfile || true)
           echo "version=${version}" >> "$GITHUB_OUTPUT"
 
       - name: Determine new app version
-        if: steps.dockerfile.outputs.changed == 'true'
+        if: steps.zabbix.outputs.version != ''
         id: app
         run: |
           echo "version=${{ steps.zabbix.outputs.version }}-1" >> "$GITHUB_OUTPUT"
 
       - name: Update config.yaml
-        if: steps.dockerfile.outputs.changed == 'true'
+        if: steps.zabbix.outputs.version != ''
         run: |
           sed -i -E "s/^version: \"[^\"]+\"/version: \"${{ steps.app.outputs.version }}\"/" zabbix-proxy/config.yaml
 
       - name: Prepend CHANGELOG entry
-        if: steps.dockerfile.outputs.changed == 'true'
+        if: steps.zabbix.outputs.version != ''
         env:
           APP_VERSION: ${{ steps.app.outputs.version }}
           ZABBIX_VERSION: ${{ steps.zabbix.outputs.version }}
@@ -73,7 +58,7 @@ jobs:
           EOF
 
       - name: Commit version bump
-        if: steps.dockerfile.outputs.changed == 'true'
+        if: steps.zabbix.outputs.version != ''
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
