@@ -12,8 +12,7 @@ jobs:
     if: |
       github.event_name == 'workflow_dispatch' ||
       (github.event.pull_request.merged == true &&
-       github.event.pull_request.user.login == 'dependabot[bot]' &&
-       startsWith(github.head_ref, 'dependabot/docker/'))
+       github.event.pull_request.user.login == 'dependabot[bot]')
     permissions:
       contents: write
     outputs:

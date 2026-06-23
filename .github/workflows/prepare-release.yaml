@@ -1,8 +1,8 @@
 name: Prepare release
 
-# Runs when Dependabot opens or updates a PR that touches the Dockerfile.
-# Reads the new Zabbix version from the FROM line, then commits matching
-# version and changelog updates onto the same branch so CI passes.
+# Runs when Dependabot opens or updates a PR. Docker updates reset the app
+# release counter for the new Zabbix version; other updates increment the
+# current app release counter and use the PR summary as the changelog entry.
 
 on:
   pull_request_target:
@@ -23,42 +23,91 @@ jobs:
           ref: ${{ github.head_ref }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract Zabbix version from Dockerfile
-        id: zabbix
-        run: |
-          version=$(grep -oP 'FROM zabbix/zabbix-proxy-sqlite3:alpine-\K[0-9]+\.[0-9]+\.[0-9]+' zabbix-proxy/Dockerfile || true)
-          echo "version=${version}" >> "$GITHUB_OUTPUT"
-
-      - name: Determine new app version
-        if: steps.zabbix.outputs.version != ''
+      - name: Prepare release metadata
         id: app
-        run: |
-          echo "version=${{ steps.zabbix.outputs.version }}-1" >> "$GITHUB_OUTPUT"
-
-      - name: Update config.yaml
-        if: steps.zabbix.outputs.version != ''
-        run: |
-          sed -i -E "s/^version: \"[^\"]+\"/version: \"${{ steps.app.outputs.version }}\"/" zabbix-proxy/config.yaml
-
-      - name: Prepend CHANGELOG entry
-        if: steps.zabbix.outputs.version != ''
         env:
-          APP_VERSION: ${{ steps.app.outputs.version }}
-          ZABBIX_VERSION: ${{ steps.zabbix.outputs.version }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_HEAD_REF: ${{ github.head_ref }}
         run: |
           python3 - <<'EOF'
-          import re, os, pathlib
-          path = pathlib.Path("zabbix-proxy/CHANGELOG.md")
-          text = path.read_text()
-          version = os.environ["APP_VERSION"]
-          zabbix_version = os.environ["ZABBIX_VERSION"]
-          entry = f"## {version}\n\n- Update to Zabbix {zabbix_version}.\n\n"
-          text = re.sub(r'(<!--[^\n]*-->\n)', r'\1\n' + entry, text, count=1)
-          path.write_text(text)
+          import os
+          import pathlib
+          import re
+          import sys
+
+          config_path = pathlib.Path("zabbix-proxy/config.yaml")
+          changelog_path = pathlib.Path("zabbix-proxy/CHANGELOG.md")
+          dockerfile_path = pathlib.Path("zabbix-proxy/Dockerfile")
+
+          config = config_path.read_text()
+          changelog = changelog_path.read_text()
+          dockerfile = dockerfile_path.read_text()
+
+          version_match = re.search(
+              r'^version:\s*"?([0-9]+\.[0-9]+\.[0-9]+)-([0-9]+)"?\s*$',
+              config,
+              re.MULTILINE,
+          )
+          if not version_match:
+              print("Could not read app version from zabbix-proxy/config.yaml", file=sys.stderr)
+              sys.exit(1)
+
+          current_base = version_match.group(1)
+          current_release = int(version_match.group(2))
+          current_version = f"{current_base}-{current_release}"
+
+          docker_match = re.search(
+              r'^FROM zabbix/zabbix-proxy-sqlite3:alpine-([0-9]+\.[0-9]+\.[0-9]+)\s*$',
+              dockerfile,
+              re.MULTILINE,
+          )
+          if not docker_match:
+              print("Could not read Zabbix version from zabbix-proxy/Dockerfile", file=sys.stderr)
+              sys.exit(1)
+
+          head_ref = os.environ["PR_HEAD_REF"]
+          if head_ref.startswith("dependabot/docker/"):
+              zabbix_version = docker_match.group(1)
+              new_version = f"{zabbix_version}-1"
+              summary = f"Update to Zabbix {zabbix_version}."
+          else:
+              body = os.environ.get("PR_BODY", "")
+              title = os.environ.get("PR_TITLE", "")
+              summary = next((line.strip() for line in body.splitlines() if line.strip()), title)
+              summary = summary.rstrip(".") + "."
+
+              top_section = re.search(
+                  r'^##\s+[0-9]+\.[0-9]+\.[0-9]+-[0-9]+\s*\n(?P<body>.*?)(?=^##\s+|\Z)',
+                  changelog,
+                  re.MULTILINE | re.DOTALL,
+              )
+              if top_section and summary in top_section.group("body"):
+                  new_version = current_version
+              else:
+                  new_version = f"{current_base}-{current_release + 1}"
+
+          entry = f"## {new_version}\n\n- {summary}\n\n"
+
+          config = re.sub(
+              r'^version:\s*"?[^"\n]+"?\s*$',
+              f'version: "{new_version}"',
+              config,
+              count=1,
+              flags=re.MULTILINE,
+          )
+
+          if not re.search(rf'^##\s+{re.escape(new_version)}\s*$', changelog, re.MULTILINE):
+              changelog = re.sub(r'(<!--[^\n]*-->\n)', r'\1\n' + entry, changelog, count=1)
+
+          config_path.write_text(config)
+          changelog_path.write_text(changelog)
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"version={new_version}\n")
           EOF
 
       - name: Commit version bump
-        if: steps.zabbix.outputs.version != ''
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"

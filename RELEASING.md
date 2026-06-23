@@ -10,7 +10,7 @@ Versions use the format `{zabbix-version}-{release}`, e.g. `7.4.9-1`.
 - The trailing `-N` counter resets to `1` on every Zabbix bump and increments
   for app-only fixes within the same Zabbix version (e.g. `7.4.9-2`).
 
-## Automated Zabbix version bumps (Dependabot)
+## Automated Dependabot releases
 
 Dependabot checks Docker Hub daily for new `zabbix/zabbix-proxy-sqlite3`
 releases. When one is found it opens a PR that updates the `FROM` line in
@@ -21,9 +21,13 @@ The **Prepare release** workflow automatically commits matching updates to
 `zabbix-proxy/CHANGELOG.md` onto the same PR branch so CI passes without any
 manual edits.
 
-Review the PR, make any extra changes if needed, then merge. The **Release**
-workflow fires automatically on merge, creates the tag, builds, and publishes
-the image to GHCR — no further action needed.
+For other Dependabot PRs, such as GitHub Actions updates, the same workflow
+increments the trailing release counter for the current Zabbix version and uses
+the first line from the Dependabot PR body as the changelog entry.
+
+Review the PR, make any extra changes if needed, then merge. For Dependabot PRs,
+the **Release** workflow fires automatically on merge, creates the tag, builds,
+and publishes the image to GHCR -- no further action needed.
 
 ## App-only releases (no Zabbix bump)
 
