@@ -1,4 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/apps/presentation#keeping-a-changelog -->
+
+## 7.4.11-1
+
+- Update to Zabbix 7.4.11.
+
 ## 7.4.10-2
 
 - Automate releases: Dependabot opens PRs for new Zabbix versions, merging
