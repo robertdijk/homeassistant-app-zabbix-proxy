@@ -1,5 +1,10 @@
 <!-- https://developers.home-assistant.io/docs/apps/presentation#keeping-a-changelog -->
 
+## 7.4.12-2
+
+- Bumps [actions/checkout](https://github.com/actions/checkout) from 7.0.0 to 7.0.1.
+
+
 ## 7.4.12-1
 
 - Update to Zabbix 7.4.12.
