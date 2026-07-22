@@ -19,7 +19,7 @@ jobs:
       version: ${{ steps.version.outputs.version }}
     steps:
       - name: Check out the repository
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7.0.1
 
       - name: Read version from config.yaml
         id: version
