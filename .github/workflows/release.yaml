@@ -34,6 +34,11 @@ jobs:
       - name: Create and push tag
         run: |
           if git ls-remote --exit-code origin "refs/tags/v${{ steps.version.outputs.version }}" &>/dev/null; then
+            if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+              echo "Tag v${{ steps.version.outputs.version }} already exists; continuing with publish."
+              exit 0
+            fi
+
             echo "Tag v${{ steps.version.outputs.version }} already exists" >&2
             exit 1
           fi
