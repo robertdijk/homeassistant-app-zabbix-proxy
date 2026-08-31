@@ -1,5 +1,10 @@
 <!-- https://developers.home-assistant.io/docs/apps/presentation#keeping-a-changelog -->
 
+## 7.4.14-1
+
+- Update to Zabbix 7.4.14.
+
+
 ## 7.4.13-1
 
 - Update to Zabbix 7.4.13.
