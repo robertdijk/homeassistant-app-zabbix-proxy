@@ -1,5 +1,10 @@
 <!-- https://developers.home-assistant.io/docs/apps/presentation#keeping-a-changelog -->
 
+## 7.4.14-2
+
+- Bumps [home-assistant/builder](https://github.com/home-assistant/builder) from 2026.06.0 to 2026.09.0.
+
+
 ## 7.4.14-1
 
 - Update to Zabbix 7.4.14.
