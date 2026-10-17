@@ -63,6 +63,37 @@ The proxy SQLite database is stored in `/data/db_data`, which is managed by Home
 Assistant as persistent app data. Do not configure this app to use the Zabbix
 server database; a Zabbix proxy has its own local database.
 
+### Buffering
+
+The default is `proxy_buffer_mode: hybrid`, with a 64 MiB memory buffer and a
+10-minute age limit. This keeps normal data collection in RAM to reduce disk
+writes, while falling back to SQLite when the buffer fills or unsent data reaches
+the age limit. A normal shutdown also saves unsent data to SQLite; a crash or
+power loss can still lose data held in RAM.
+
+To use only RAM for collected data, set `proxy_buffer_mode: memory`. Unsent data
+is lost on shutdown, and the oldest data is dropped when the buffer fills.
+SQLite is still required for proxy configuration. Use `disk` to always buffer
+collected data in SQLite.
+
+- `proxy_memory_buffer_size`: buffer size in MiB, default `64`. Increase it if
+  needed and RAM is available; this is additional to the proxy's other memory.
+- `proxy_memory_buffer_age`: age limit in seconds for hybrid mode, default `600`.
+  Use `0` to disable the age limit, or at least `600`. It must not exceed
+  `proxy_offline_buffer` converted from hours to seconds.
+- `proxy_offline_buffer`: retention during server outages, default `1` hour.
+  It does not protect memory mode against shutdown or a full buffer.
+
+`ProxyLocalBuffer` is fixed at `0`, so already-sent history is not retained.
+Home Assistant allows up to 60 seconds for the app to shut down and flush its
+hybrid buffer. This is separate from the `timeout` option for monitoring checks.
+
+Restart the app after changing these options. Existing installations also use
+the hybrid defaults when the new options have not been set.
+
+See [Zabbix's buffer documentation](https://www.zabbix.com/documentation/7.4/en/manual/concepts/proxy#proxy-memory-buffer)
+for details.
+
 ## Limitations
 
 - ICMP ping checks may require the `NET_RAW` capability. This app intentionally

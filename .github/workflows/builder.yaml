@@ -48,6 +48,11 @@ jobs:
             exit 1
           fi
 
+      - name: Test app options
+        run: |
+          bash -n zabbix-proxy/rootfs/usr/local/bin/ha-zabbix-proxy-entrypoint
+          python3 -m unittest discover -s tests
+
   init:
     name: Initialize builds
     runs-on: ubuntu-latest

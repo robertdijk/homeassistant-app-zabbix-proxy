@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/apps/presentation#keeping-a-changelog -->
 
+## 7.4.15-2
+
+- Add configurable disk, memory, and hybrid buffering. Default to hybrid with a
+  64 MiB memory buffer and a 10-minute age limit, including existing installs.
+- Allow 60 seconds for shutdown so the hybrid buffer can be saved to SQLite.
+- Clarify setup, TLS, networking, and release documentation.
+
 ## 7.4.15-1
 
 - Update to Zabbix 7.4.15.

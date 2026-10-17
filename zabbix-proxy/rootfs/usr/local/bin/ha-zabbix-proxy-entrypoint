@@ -92,6 +92,51 @@ if [[ "$(id -u)" -eq 0 ]]; then
 fi
 
 export_if_set ZBX_DEBUGLEVEL debug_level
+
+# Defaults also cover existing installations whose options lack these keys.
+buffer_mode="$(read_config proxy_buffer_mode)"
+buffer_size="$(read_config proxy_memory_buffer_size)"
+buffer_age="$(read_config proxy_memory_buffer_age)"
+export ZBX_PROXYBUFFERMODE="${buffer_mode:-hybrid}"
+export ZBX_PROXYMEMORYBUFFERSIZE="${buffer_size:-64}M"
+export ZBX_PROXYMEMORYBUFFERAGE="${buffer_age:-600}"
+# Memory and hybrid modes require already-sent history retention to be disabled.
+export ZBX_PROXYLOCALBUFFER=0
+
+case "${ZBX_PROXYBUFFERMODE}" in
+  disk|memory|hybrid) ;;
+  *)
+    log "Invalid proxy_buffer_mode. Expected 'disk', 'memory', or 'hybrid'."
+    exit 1
+    ;;
+esac
+
+if [[ ! "${buffer_size:-64}" =~ ^[1-9][0-9]{0,3}$ ]] || (( ${buffer_size:-64} > 2048 )); then
+  log "proxy_memory_buffer_size must be between 1 and 2048 MiB."
+  exit 1
+fi
+
+if [[ ! "${ZBX_PROXYMEMORYBUFFERAGE}" =~ ^(0|[1-9][0-9]{0,5})$ ]] ||
+   (( ZBX_PROXYMEMORYBUFFERAGE != 0 && (ZBX_PROXYMEMORYBUFFERAGE < 600 || ZBX_PROXYMEMORYBUFFERAGE > 864000) )); then
+  log "proxy_memory_buffer_age must be 0 or between 600 and 864000 seconds."
+  exit 1
+fi
+
+offline_buffer="$(read_config proxy_offline_buffer)"
+if [[ "${ZBX_PROXYBUFFERMODE}" == hybrid ]] &&
+   (( ZBX_PROXYMEMORYBUFFERAGE > ${offline_buffer:-1} * 3600 )); then
+  log "proxy_memory_buffer_age (seconds) must not exceed proxy_offline_buffer (hours)."
+  exit 1
+fi
+
+if [[ "${ZBX_PROXYBUFFERMODE}" != hybrid ]]; then
+  # Zabbix rejects a nonzero age limit outside hybrid mode.
+  export ZBX_PROXYMEMORYBUFFERAGE=0
+fi
+if [[ "${ZBX_PROXYBUFFERMODE}" == disk ]]; then
+  export ZBX_PROXYMEMORYBUFFERSIZE=0
+fi
+
 export_if_set ZBX_PROXYOFFLINEBUFFER proxy_offline_buffer
 export_if_set ZBX_PROXYCONFIGFREQUENCY proxy_config_frequency
 export_if_set ZBX_DATASENDERFREQUENCY data_sender_frequency

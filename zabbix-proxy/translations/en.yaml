@@ -11,9 +11,18 @@ configuration:
   debug_level:
     name: Debug level
     description: Zabbix proxy log verbosity from 0 to 5.
+  proxy_buffer_mode:
+    name: Buffer mode
+    description: Hybrid uses RAM with SQLite fallback (recommended). Memory drops unsent data on shutdown or overflow. Disk always uses SQLite.
+  proxy_memory_buffer_size:
+    name: Memory buffer size (MiB)
+    description: RAM reserved for buffered data in hybrid or memory mode, from 1 to 2048 MiB. Default is 64 MiB; other proxy memory is additional.
+  proxy_memory_buffer_age:
+    name: Memory buffer age (seconds)
+    description: In hybrid mode, fall back to SQLite when unsent data reaches this age. Use 0 to disable, or 600 to 864000 seconds, no longer than the offline buffer.
   proxy_offline_buffer:
     name: Offline buffer
-    description: Number of hours to keep data while the Zabbix server is unavailable.
+    description: Number of hours to keep data while the Zabbix server is unavailable. This does not prevent memory mode from dropping data on shutdown or overflow.
   proxy_config_frequency:
     name: Config frequency
     description: Seconds between proxy configuration refreshes in active mode.
