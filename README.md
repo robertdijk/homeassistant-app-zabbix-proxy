@@ -20,15 +20,19 @@ This repository contains the following app.
 
 _Zabbix proxy with SQLite3 storage for Home Assistant._
 
-The app uses the official `zabbix/zabbix-proxy-sqlite3:alpine-7.4-latest`
-container image and translates Home Assistant app options into the upstream
-`ZBX_*` environment variables.
+The app uses the official `zabbix/zabbix-proxy-sqlite3` Alpine image, pinned to
+the version in [the Dockerfile](./zabbix-proxy/Dockerfile), and translates Home
+Assistant app options into the upstream `ZBX_*` environment variables.
 
 ## Publishing
 
 Images are built with the Home Assistant builder GitHub Actions. Pull requests
-and pushes to `main` build for validation. Version tags such as `v0.1.0`
-publish the multi-architecture image to GHCR.
+and pushes to `main` build for validation when app configuration, the Dockerfile,
+runtime files, or build workflows change.
+
+Merging a Dependabot PR automatically creates a version tag and publishes the
+multi-architecture image to GHCR. For app-only releases, run the **Release**
+workflow manually. Pushing a tag alone does not publish an image.
 
 See [RELEASING.md](./RELEASING.md) for the release checklist.
 

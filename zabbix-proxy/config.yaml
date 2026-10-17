@@ -1,6 +1,6 @@
 # https://developers.home-assistant.io/docs/apps/configuration#app-configuration
 name: Zabbix Proxy
-version: "7.4.15-1"
+version: "7.4.15-2"
 slug: zabbix_proxy
 description: Zabbix proxy with SQLite3 storage for Home Assistant
 url: "https://github.com/robertdijk/homeassistant-app-zabbix-proxy/tree/main/zabbix-proxy"
@@ -8,6 +8,7 @@ arch:
   - aarch64
   - amd64
 init: false
+timeout: 60
 ports:
   10051/tcp: null
 ports_description:
@@ -21,6 +22,9 @@ options:
   proxy_hostname: null
   proxy_mode: active
   debug_level: 3
+  proxy_buffer_mode: hybrid
+  proxy_memory_buffer_size: 64
+  proxy_memory_buffer_age: 600
   proxy_offline_buffer: 1
   proxy_config_frequency: 10
   data_sender_frequency: 1
@@ -32,6 +36,9 @@ schema:
   proxy_hostname: str
   proxy_mode: list(active|passive)
   debug_level: int(0,5)
+  proxy_buffer_mode: list(disk|memory|hybrid)
+  proxy_memory_buffer_size: int(1,2048)
+  proxy_memory_buffer_age: int(0,864000)
   proxy_offline_buffer: int(1,)
   proxy_config_frequency: int(1,)
   data_sender_frequency: int(1,)
