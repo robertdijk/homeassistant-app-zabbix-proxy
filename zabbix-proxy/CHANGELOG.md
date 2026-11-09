@@ -1,5 +1,10 @@
 <!-- https://developers.home-assistant.io/docs/apps/presentation#keeping-a-changelog -->
 
+## 7.4.16-1
+
+- Update to Zabbix 7.4.16.
+
+
 ## 7.4.15-2
 
 - Add configurable disk, memory, and hybrid buffering. Default to hybrid with a
