@@ -48,6 +48,7 @@ for mode, proxy_mode, tls in (
     ("hybrid", "passive", "cert"), ("hybrid", "active", "cert"),
 ):
     name = f"zabbix8-smoke-{uuid.uuid4().hex[:10]}"
+    data_volume = name + "-data"
     with tempfile.TemporaryDirectory(prefix="zabbix8-smoke-") as directory:
         options = {
             "server_host": "127.0.0.1:10052", "proxy_hostname": name,
@@ -61,6 +62,7 @@ for mode, proxy_mode, tls in (
             options.update(tls_psk_identity="smoke-test", tls_psk="ab" * 32)
         cert_directory = Path(directory, "certificates")
         cert_directory.mkdir()
+        cert_directory.chmod(0o755)
         if tls == "cert":
             subprocess.run(
                 ["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes",
@@ -69,11 +71,20 @@ for mode, proxy_mode, tls in (
                  "-days", "1", "-subj", "/CN=smoke-test"],
                 check=True, capture_output=True, timeout=30,
             )
+            # Dummy test keys must be readable by container root without
+            # bypassing the host user's file permissions through a capability.
+            (cert_directory / "key.pem").chmod(0o644)
             prefix = "/config/" if proxy_mode == "passive" else ""
             options.update(tls_ca_file=prefix + "cert.pem",
                            tls_cert_file=prefix + "cert.pem", tls_key_file=prefix + "key.pem")
         Path(directory, "options.json").write_text(json.dumps(options))
         try:
+            docker("volume", "create", data_volume)
+            data_mount = f"type=volume,src={data_volume},dst=/data"
+            docker("run", "--rm", "--network", "none", "--mount", data_mount,
+                   "--mount", f"type=bind,src={directory}/options.json,dst=/tmp/options.json,readonly",
+                   "--entrypoint", "/bin/sh", IMAGE,
+                   "-c", "cp /tmp/options.json /data/options.json")
             security_options = []
             if profile := os.environ.get("SMOKE_APPARMOR"):
                 security_options = ["--security-opt", f"apparmor={profile}"]
@@ -85,15 +96,15 @@ for mode, proxy_mode, tls in (
                 try:
                     docker("run", "-d", "--name", previous_name, "--platform", PLATFORM,
                            "--network", "none", "--mount",
-                           f"type=bind,src={directory},dst=/data", *security_options, previous_image)
+                           data_mount, *security_options, previous_image)
                     wait_for_startup(previous_name)
+                    assert ".sqlite" in docker("exec", previous_name, "ls", "/data/db_data")
                     docker("stop", "--time", "60", previous_name)
-                    assert list(Path(directory, "db_data").glob("*.sqlite"))
                 finally:
                     docker("rm", "-fv", previous_name, check=False)
             docker("run", "-d", "--name", name, "--platform", PLATFORM,
                    "--network", "none", "--mount",
-                   f"type=bind,src={directory},dst=/data", "--mount",
+                   data_mount, "--mount",
                    f"type=bind,src={cert_directory},dst=/config,readonly",
                    *security_options, IMAGE)
             wait_for_startup(name)
@@ -143,8 +154,7 @@ for mode, proxy_mode, tls in (
             assert "successful" in validation.lower(), validation
             database_path = configured["DBName"]
             assert database_path.startswith("/var/lib/zabbix/db_data/"), database_path
-            database_file = Path(directory, "db_data", Path(database_path).name)
-            assert database_file.stat().st_size > 0
+            docker("exec", name, "test", "-s", database_path)
             docker("exec", name, "sh", "-c", "test -L /var/lib/zabbix/db_data")
 
             docker("stop", "--time", "60", name)
@@ -156,3 +166,4 @@ for mode, proxy_mode, tls in (
                   "startup, persistent SQLite, graceful shutdown", flush=True)
         finally:
             docker("rm", "-fv", name, check=False)
+            docker("volume", "rm", data_volume, check=False)
