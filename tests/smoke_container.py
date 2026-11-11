@@ -1,6 +1,7 @@
 """Build first, then run: python3 tests/smoke_container.py IMAGE [PLATFORM]."""
 
 import json
+import os
 import re
 from pathlib import Path
 import subprocess
@@ -22,6 +23,19 @@ def docker(*args, check=True):
     return result.stdout
 
 
+def wait_for_startup(name):
+    deadline = time.monotonic() + 30
+    while time.monotonic() < deadline:
+        logs = docker("logs", name)
+        state = json.loads(docker("inspect", "--format", "{{json .State}}", name))
+        if not state["Running"]:
+            raise AssertionError(f"Container exited: {state}\n{logs}")
+        if "started [" in logs:
+            return
+        time.sleep(0.5)
+    raise AssertionError(f"Startup timed out:\n{logs}")
+
+
 PLATFORM = sys.argv[2] if len(sys.argv) > 2 else docker(
     "image", "inspect", IMAGE, "--format", "{{.Os}}/{{.Architecture}}"
 ).strip()
@@ -31,9 +45,10 @@ for mode, proxy_mode, tls in (
     ("disk", "passive", "unencrypted"), ("memory", "passive", "unencrypted"),
     ("hybrid", "passive", "unencrypted"), ("hybrid", "active", "unencrypted"),
     ("hybrid", "passive", "psk"), ("hybrid", "active", "psk"),
+    ("hybrid", "passive", "cert"), ("hybrid", "active", "cert"),
 ):
     name = f"zabbix8-smoke-{uuid.uuid4().hex[:10]}"
-    with tempfile.TemporaryDirectory(prefix="zabbix8-smoke-", dir="/private/tmp") as directory:
+    with tempfile.TemporaryDirectory(prefix="zabbix8-smoke-") as directory:
         options = {
             "server_host": "127.0.0.1:10052", "proxy_hostname": name,
             "proxy_mode": proxy_mode, "debug_level": 3,
@@ -44,22 +59,44 @@ for mode, proxy_mode, tls in (
         }
         if tls == "psk":
             options.update(tls_psk_identity="smoke-test", tls_psk="ab" * 32)
+        cert_directory = Path(directory, "certificates")
+        cert_directory.mkdir()
+        if tls == "cert":
+            subprocess.run(
+                ["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes",
+                 "-keyout", str(cert_directory / "key.pem"),
+                 "-out", str(cert_directory / "cert.pem"),
+                 "-days", "1", "-subj", "/CN=smoke-test"],
+                check=True, capture_output=True, timeout=30,
+            )
+            prefix = "/config/" if proxy_mode == "passive" else ""
+            options.update(tls_ca_file=prefix + "cert.pem",
+                           tls_cert_file=prefix + "cert.pem", tls_key_file=prefix + "key.pem")
         Path(directory, "options.json").write_text(json.dumps(options))
         try:
+            security_options = []
+            if profile := os.environ.get("SMOKE_APPARMOR"):
+                security_options = ["--security-opt", f"apparmor={profile}"]
+            # Exercise an existing data directory on the normal hybrid setup.
+            # A previous release can be supplied to test a version upgrade too.
+            if (mode, proxy_mode, tls) == ("hybrid", "passive", "unencrypted"):
+                previous_name = name + "-previous"
+                previous_image = os.environ.get("SMOKE_PREVIOUS_IMAGE", IMAGE)
+                try:
+                    docker("run", "-d", "--name", previous_name, "--platform", PLATFORM,
+                           "--network", "none", "--mount",
+                           f"type=bind,src={directory},dst=/data", *security_options, previous_image)
+                    wait_for_startup(previous_name)
+                    docker("stop", "--time", "60", previous_name)
+                    assert list(Path(directory, "db_data").glob("*.sqlite"))
+                finally:
+                    docker("rm", "-fv", previous_name, check=False)
             docker("run", "-d", "--name", name, "--platform", PLATFORM,
                    "--network", "none", "--mount",
-                   f"type=bind,src={directory},dst=/data", IMAGE)
-            deadline = time.monotonic() + 30
-            while time.monotonic() < deadline:
-                logs = docker("logs", name)
-                state = json.loads(docker("inspect", "--format", "{{json .State}}", name))
-                if not state["Running"]:
-                    raise AssertionError(f"Container exited: {state}\n{logs}")
-                if "started [" in logs:
-                    break
-                time.sleep(0.5)
-            else:
-                raise AssertionError(f"Startup timed out:\n{logs}")
+                   f"type=bind,src={directory},dst=/data", "--mount",
+                   f"type=bind,src={cert_directory},dst=/config,readonly",
+                   *security_options, IMAGE)
+            wait_for_startup(name)
 
             config = docker("exec", name, "sh", "-c", "cat /etc/zabbix/zabbix_proxy*.conf")
             # Zabbix 8 resolves ${ENV_VAR} placeholders in its configuration.
@@ -95,6 +132,10 @@ for mode, proxy_mode, tls in (
             if tls == "psk":
                 assert configured.get("TLSPSKIdentity") == "smoke-test", configured
                 assert docker("exec", name, "cat", configured["TLSPSKFile"]).strip() == "ab" * 32
+            if tls == "cert":
+                for key, filename in (("TLSCAFile", "cert.pem"),
+                                      ("TLSCertFile", "cert.pem"), ("TLSKeyFile", "key.pem")):
+                    assert docker("exec", name, "cat", configured[key]) == (cert_directory / filename).read_text()
 
             validation = docker("exec", name, "/usr/local/bin/ha-zabbix-proxy-entrypoint",
                                 "/usr/sbin/zabbix_proxy", "-T",

@@ -1,0 +1,47 @@
+name: Test app
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Runtime smoke test (${{ matrix.arch }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            os: ubuntu-24.04
+          - arch: arm64
+            os: ubuntu-24.04-arm
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7.0.1
+
+      - name: Test app options
+        run: |
+          bash -n zabbix-proxy/rootfs/usr/local/bin/ha-zabbix-proxy-entrypoint
+          python3 -m unittest discover -s tests
+
+      - name: Load the app AppArmor profile
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y apparmor
+          sudo apparmor_parser -r zabbix-proxy/apparmor.txt
+
+      - name: Build the local test image
+        run: docker build -t zabbix-proxy:smoke zabbix-proxy
+
+      - name: Verify startup, options, TLS, storage, and shutdown
+        env:
+          SMOKE_APPARMOR: zabbix_proxy
+        run: python3 tests/smoke_container.py zabbix-proxy:smoke
+
+      - name: Show AppArmor diagnostics on failure
+        if: failure()
+        run: sudo journalctl -k --no-pager -n 200
+

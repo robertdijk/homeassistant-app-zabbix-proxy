@@ -6,12 +6,14 @@ profile zabbix_proxy flags=(attach_disconnected,mediate_deleted) {
   file,
   network inet tcp,
   network inet udp,
+  network inet6 tcp,
+  network inet6 udp,
   signal (receive, send),
 
   # Entrypoints and shell helpers used by the Home Assistant wrapper and
   # the upstream Zabbix Docker entrypoint.
   /usr/local/bin/ha-zabbix-proxy-entrypoint ix,
-  /usr/bin/zabbix-docker-entrypoint.sh ix,
+  /usr/bin/docker-entrypoint ix,
   /bin/** rix,
   /usr/bin/** rix,
   /usr/sbin/** rix,

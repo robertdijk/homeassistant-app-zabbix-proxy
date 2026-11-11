@@ -1,7 +1,7 @@
 name: Builder
 
 env:
-  MONITORED_FILES: "config.json config.yaml config.yml Dockerfile rootfs"
+  MONITORED_FILES: "config.json config.yaml config.yml Dockerfile rootfs apparmor.txt"
 
 on:
   pull_request:
@@ -81,10 +81,10 @@ jobs:
           changed_apps=()
 
           if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
-            changed_apps=(${APPS})
+            read -r -a changed_apps <<< "${APPS}"
           # If the workflow file itself changed, rebuild all apps
-          elif [[ "${CHANGED_FILES}" =~ \.github/workflows/(builder|build-app)\.yaml ]]; then
-            changed_apps=(${APPS})
+          elif [[ "${CHANGED_FILES}" =~ \.github/workflows/(builder|build-app|test-app)\.yaml ]]; then
+            read -r -a changed_apps <<< "${APPS}"
           else
             for app in ${APPS}; do
               for file in ${MONITORED_FILES}; do
@@ -103,9 +103,14 @@ jobs:
             echo "changed=false" >> "$GITHUB_OUTPUT"
           fi
 
+  smoke:
+    name: Test app
+    needs: validate-release
+    uses: ./.github/workflows/test-app.yaml
+
   build-app:
     name: Build ${{ matrix.app }}
-    needs: [validate-release, init]
+    needs: [validate-release, init, smoke]
     if: needs.init.outputs.changed == 'true'
     permissions:
       contents: read

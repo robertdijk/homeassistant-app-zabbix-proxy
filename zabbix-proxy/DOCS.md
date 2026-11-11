@@ -13,12 +13,13 @@ the proxy through the Home Assistant host's IP address.
 
 ## Setup
 
-1. In Zabbix, create a proxy under **Administration -> Proxies**.
+1. In Zabbix 8.0, create a proxy under **Administration -> Proxies**.
 2. Set the Zabbix proxy name to exactly the same value you will enter in
    `proxy_hostname`.
 3. Choose active proxy mode unless your Zabbix server must connect to the proxy.
 4. Install this app in Home Assistant and configure:
-   - `server_host`: your Zabbix server DNS name or IP address, optionally with a port.
+   - `server_host`: your Zabbix server DNS name or IP address, optionally with a port
+     in active mode (for example, `zabbix.example.com:10052`).
    - `proxy_hostname`: the proxy name configured in Zabbix.
 5. Start the app and check the logs for the Zabbix proxy startup messages.
 
@@ -37,6 +38,8 @@ Passive mode requires the Zabbix server to connect to this proxy. Set
 `proxy_mode` to `passive` and enable the `10051/tcp` port mapping in Home
 Assistant. Configure the server to connect to the Home Assistant host's IP
 address and mapped port, even when both are on the same LAN.
+In passive mode, `server_host` is the allowed source address of the server;
+any simple `host:port` suffix is ignored.
 
 ## TLS
 
@@ -91,14 +94,15 @@ hybrid buffer. This is separate from the `timeout` option for monitoring checks.
 Restart the app after changing these options. Existing installations also use
 the hybrid defaults when the new options have not been set.
 
-See [Zabbix's buffer documentation](https://www.zabbix.com/documentation/7.4/en/manual/concepts/proxy#proxy-memory-buffer)
+See [Zabbix's buffer documentation](https://www.zabbix.com/documentation/8.0/en/manual/concepts/proxy#proxy-memory-buffer)
 for details.
 
 ## Limitations
 
 - ICMP ping checks may require the `NET_RAW` capability. This app intentionally
   does not request that capability.
-- The app targets Zabbix 7.4 using the official SQLite proxy image.
-- Zabbix 7.4 and the upstream proxy image are licensed under AGPLv3. This
+- The app targets Zabbix 8.0 using the official SQLite proxy image. New Zabbix 8
+  features such as the APM collector are not enabled or exposed by this app.
+- Zabbix 8.0 and the upstream proxy image are licensed under AGPLv3. This
   repository's app wrapper is licensed separately under Apache-2.0.
 - The app icon and logo use the Zabbix logo asset from Wikimedia Commons.

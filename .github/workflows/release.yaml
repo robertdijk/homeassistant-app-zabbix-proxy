@@ -6,13 +6,20 @@ on:
   workflow_dispatch:
 
 jobs:
-  tag:
-    name: Create release tag
-    runs-on: ubuntu-latest
+  test:
+    name: Test release candidate
     if: |
       github.event_name == 'workflow_dispatch' ||
       (github.event.pull_request.merged == true &&
        github.event.pull_request.user.login == 'dependabot[bot]')
+    permissions:
+      contents: read
+    uses: ./.github/workflows/test-app.yaml
+
+  tag:
+    name: Create release tag
+    needs: test
+    runs-on: ubuntu-latest
     permissions:
       contents: write
     outputs:
