@@ -5,7 +5,6 @@ USER root
 
 RUN \
     apk add --no-cache jq \
-    && mv /usr/bin/docker-entrypoint.sh /usr/bin/zabbix-docker-entrypoint.sh \
     && rm -rf /var/lib/zabbix/db_data \
     && ln -s /data/db_data /var/lib/zabbix/db_data
 

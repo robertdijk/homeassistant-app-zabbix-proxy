@@ -3,6 +3,8 @@
 ## 8.0.0-1
 
 - Update to Zabbix 8.0.0.
+- Use the Zabbix 8 container entrypoint executable.
+- Preserve custom server ports with the Zabbix 8 configuration format.
 
 
 ## 7.4.16-1

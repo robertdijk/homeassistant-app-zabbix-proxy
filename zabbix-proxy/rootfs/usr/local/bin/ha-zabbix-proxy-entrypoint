@@ -2,7 +2,7 @@
 set -euo pipefail
 
 CONFIG_PATH="${CONFIG_PATH:-/data/options.json}"
-ZABBIX_ENTRYPOINT="/usr/bin/zabbix-docker-entrypoint.sh"
+ZABBIX_ENTRYPOINT="/usr/bin/docker-entrypoint"
 
 log() {
   echo "[zabbix-proxy] $*" >&2
@@ -78,10 +78,11 @@ case "${proxy_mode:-active}" in
     ;;
 esac
 
-if [[ "${server_host}" =~ ^([^:]+):([0-9]+)$ ]]; then
+if [[ "${proxy_mode:-active}" == passive && "${server_host}" =~ ^([^:]+):([0-9]+)$ ]]; then
+  # Passive mode uses Server as an incoming connection allowlist, without ports.
   export ZBX_SERVER_HOST="${BASH_REMATCH[1]}"
-  export ZBX_SERVER_PORT="${BASH_REMATCH[2]}"
 else
+  # Zabbix 8 reads the active server port directly from Server=host:port.
   export ZBX_SERVER_HOST="${server_host}"
 fi
 
