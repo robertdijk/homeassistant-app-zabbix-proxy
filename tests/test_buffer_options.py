@@ -56,6 +56,15 @@ class BufferOptionsTest(unittest.TestCase):
                 age = 600 if mode == "hybrid" else 0
                 self.assertIn(f"ZBX_PROXYMEMORYBUFFERAGE={age}\n", result.stdout)
 
+    def test_server_port_is_preserved_for_active_mode(self):
+        for proxy_mode in ("active", "passive"):
+            with self.subTest(proxy_mode=proxy_mode):
+                result = self.run_wrapper(server_host="zabbix.example.com:10052",
+                                          proxy_mode=proxy_mode)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                host = "zabbix.example.com:10052" if proxy_mode == "active" else "zabbix.example.com"
+                self.assertIn(f"ZBX_SERVER_HOST={host}\n", result.stdout)
+
     def test_disabled_age_limit(self):
         result = self.run_wrapper(proxy_memory_buffer_age=0)
         self.assertEqual(result.returncode, 0, result.stderr)

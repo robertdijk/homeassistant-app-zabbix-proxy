@@ -1,7 +1,7 @@
 configuration:
   server_host:
     name: Zabbix server
-    description: Zabbix server DNS name or IP address, optionally including a port.
+    description: Zabbix server DNS name or IP address. In active mode, optionally append a port (host:port). In passive mode, this is the allowed server source address.
   proxy_hostname:
     name: Proxy hostname
     description: Proxy name exactly as configured in the Zabbix frontend.

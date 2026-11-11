@@ -1,5 +1,16 @@
 <!-- https://developers.home-assistant.io/docs/apps/presentation#keeping-a-changelog -->
 
+## 8.0.0-1
+
+- Update to Zabbix 8.0.0.
+- Use the Zabbix 8 container entrypoint executable.
+- Preserve custom server ports with the Zabbix 8 configuration format.
+- Update the AppArmor entrypoint rule and allow IPv6 TCP/UDP networking.
+- Test startup, Home Assistant options, TLS, storage, and shutdown on both
+  architectures in CI with AppArmor enabled.
+- Update documentation for Zabbix 8.0.
+
+
 ## 7.4.16-1
 
 - Update to Zabbix 7.4.16.

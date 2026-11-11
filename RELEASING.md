@@ -45,8 +45,29 @@ builds, and publishes the image to GHCR.
 ## Upgrading to a new minor or major Zabbix version
 
 Dependabot will open PRs for any new Zabbix version — patch, minor, or major.
-Review and merge as usual; the **Prepare release** workflow handles all version
-bumps the same way.
+The **Prepare release** workflow handles version metadata, but a minor or major
+upgrade also needs a compatibility review. Check the upstream entrypoint,
+environment variables, configuration and database paths, AppArmor profile, and
+server/proxy compatibility. Update the documentation and changelog accordingly.
+
+Before merging, require passing **Runtime smoke test** jobs on both architectures.
+These build the candidate and enforce `zabbix-proxy/apparmor.txt` while testing
+options, all buffer modes, active/passive operation, PSK/certificate configuration,
+SQLite persistence, and graceful shutdown. Unit tests also run in **Validate
+release metadata**. A local run can use:
+
+```bash
+docker build -t zabbix-proxy:smoke zabbix-proxy
+python3 -m unittest discover -s tests
+python3 tests/smoke_container.py zabbix-proxy:smoke
+```
+
+Local Docker Desktop tests do not enforce AppArmor because its Linux VM does not
+provide AppArmor. CI loads and enforces the profile on Linux runners. An
+AppArmor-enabled Linux host can run the smoke test with
+`SMOKE_APPARMOR=zabbix_proxy` after loading the profile using `apparmor_parser`.
+To test an upgrade using a disposable database created by an older local image,
+set `SMOKE_PREVIOUS_IMAGE` to that image when running the smoke test.
 
 ## First GHCR Release
 

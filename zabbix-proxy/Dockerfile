@@ -1,11 +1,10 @@
 # https://developers.home-assistant.io/docs/apps/configuration#app-dockerfile
-FROM zabbix/zabbix-proxy-sqlite3:alpine-7.4.16
+FROM zabbix/zabbix-proxy-sqlite3:alpine-8.0.0
 
 USER root
 
 RUN \
     apk add --no-cache jq \
-    && mv /usr/bin/docker-entrypoint.sh /usr/bin/zabbix-docker-entrypoint.sh \
     && rm -rf /var/lib/zabbix/db_data \
     && ln -s /data/db_data /var/lib/zabbix/db_data
 
